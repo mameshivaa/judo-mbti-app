@@ -1,103 +1,153 @@
-import Image from "next/image";
+'use client'
+
+import { useState } from 'react'
+import { Answer, AnswerValue } from '@/types/mbti'
+import { calculateMBTIType, getTypeAnalysis } from '@/lib/utils/mbti'
+import { questions } from '@/lib/data/questions'
+import { typeDescriptions } from '@/lib/data/type-descriptions'
+import { QuestionFlow } from '@/components/ui/QuestionFlow'
+import { ProgressIndicator } from '@/components/ui/progress-indicator'
+import { MBTIChart } from '@/components/ui/mbti-chart'
+import { Button } from '@/components/ui/button'
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [answerMap, setAnswerMap] = useState<Record<string, AnswerValue>>({})
+  const [showResult, setShowResult] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // 回答を処理し、次の質問に進む
+  const handleAnswer = (questionId: string, value: AnswerValue) => {
+    // answerMapを更新
+    setAnswerMap(prev => ({
+      ...prev,
+      [questionId]: value
+    }))
+
+    // 現在の質問に回答した場合、次の質問へ
+    if (questionId === questions[currentQuestionIndex].id) {
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1)
+      } else {
+        setShowResult(true)
+      }
+    }
+  }
+
+  // 結果計算用のAnswerオブジェクト配列を作成
+  const answers: Answer[] = Object.entries(answerMap).map(([questionId, value]) => ({
+    questionId,
+    value
+  }))
+
+  const result = showResult ? calculateMBTIType(answers) : null
+  const typeDescription = result ? typeDescriptions[result.type] : null
+  const analysis = showResult ? getTypeAnalysis(answers) : null
+
+  if (showResult && typeDescription && result) {
+    return (
+      <main className="min-h-screen p-4 sm:p-8">
+        <div className="container mx-auto max-w-4xl">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-8 text-center">診断結果</h1>
+          <div className="space-y-8">
+            <div className="bg-card p-4 sm:p-6 rounded-lg shadow-sm">
+              <h2 className="text-xl sm:text-2xl font-semibold mb-4">
+                {typeDescription.type} - {typeDescription.title}
+              </h2>
+              <p className="mb-6 text-sm sm:text-base">{typeDescription.description}</p>
+
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-4">あなたの特性分布</h3>
+                <MBTIChart result={result} />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">強み</h3>
+                  <p className="mb-4 text-sm sm:text-base whitespace-pre-line">{typeDescription.strengths}</p>
+                  
+                  <h3 className="text-lg font-semibold mb-2">弱み</h3>
+                  <p className="mb-4 text-sm sm:text-base whitespace-pre-line">{typeDescription.weaknesses}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">理想的な働き方</h3>
+                  <p className="mb-4 text-sm sm:text-base whitespace-pre-line">{typeDescription.workStyle}</p>
+                  
+                  <h3 className="text-lg font-semibold mb-2">注意点</h3>
+                  <p className="mb-4 text-sm sm:text-base whitespace-pre-line">{typeDescription.carePoints}</p>
+                  
+                  <h3 className="text-lg font-semibold mb-2">ストレス対策</h3>
+                  <p className="text-sm sm:text-base whitespace-pre-line">{typeDescription.stressTips}</p>
+                </div>
+              </div>
+
+              {showDebug && analysis && (
+                <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm font-mono">
+                  <h4 className="font-semibold mb-2">デバッグ情報</h4>
+                  <div>
+                    <p>E/I: E={analysis.EI.E} I={analysis.EI.I} (diff={analysis.EI.diff})</p>
+                    <p>S/N: S={analysis.SN.S} N={analysis.SN.N} (diff={analysis.SN.diff})</p>
+                    <p>T/F: T={analysis.TF.T} F={analysis.TF.F} (diff={analysis.TF.diff})</p>
+                    <p>J/P: J={analysis.JP.J} P={analysis.JP.P} (diff={analysis.JP.diff})</p>
+                  </div>
+                  <div className="mt-2">
+                    <p>正規化スコア:</p>
+                    <p>E/I: {result.eScore}</p>
+                    <p>S/N: {result.sScore}</p>
+                    <p>T/F: {result.tScore}</p>
+                    <p>J/P: {result.jScore}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                onClick={() => {
+                  setShowResult(false)
+                  setCurrentQuestionIndex(0)
+                  setAnswerMap({})
+                }}
+                className="flex-1"
+              >
+                もう一度診断する
+              </Button>
+              <Button
+                onClick={() => setShowDebug(!showDebug)}
+                variant="outline"
+              >
+                {showDebug ? 'デバッグ情報を隠す' : 'デバッグ情報を表示'}
+              </Button>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+    )
+  }
+
+  return (
+    <main className="min-h-screen p-4 sm:p-8">
+      <div className="container mx-auto max-w-2xl">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-8 text-center">MBTI診断テスト</h1>
+        <div className="space-y-8">
+          <ProgressIndicator
+            currentQuestionIndex={currentQuestionIndex}
+            answers={answers}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          
+          <QuestionFlow
+            questions={questions}
+            answers={answerMap}
+            onAnswer={handleAnswer}
+            currentQuestionIndex={currentQuestionIndex}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+
+          <div className="text-sm text-gray-600 text-center">
+            ※ 各質問に対して、あなたの普段の行動や考え方に最も近いものを選んでください
+          </div>
+        </div>
+      </div>
+    </main>
+  )
 }

@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 質問のカテゴリー（E/I, S/N, T/F, J/P）
+model QuestionCategory {
+  id        String     @id @default(cuid())
+  name      String     // e.g., "E/I", "S/N", etc.
+  questions Question[]
+}
+
+// 質問項目
+model Question {
+  id         String           @id @default(cuid())
+  text       String          // 質問文
+  category   QuestionCategory @relation(fields: [categoryId], references: [id])
+  categoryId String
+  type       String          // "E", "I", "S", "N", "T", "F", "J", "P"のいずれか
+  answers    Answer[]
+}
+
+// 回答
+model Answer {
+  id         String    @id @default(cuid())
+  value      Int       // -2 to 2
+  question   Question  @relation(fields: [questionId], references: [id])
+  questionId String
+  test       Test      @relation(fields: [testId], references: [id])
+  testId     String
+}
+
+// テスト（診断セッション）
+model Test {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  answers   Answer[]
+  result    Result?
+}
+
+// 診断結果
+model Result {
+  id           String   @id @default(cuid())
+  test        Test     @relation(fields: [testId], references: [id])
+  testId      String   @unique
+  type        String   // e.g., "ESTJ"
+  eScore      Int
+  sScore      Int
+  tScore      Int
+  jScore      Int
+  createdAt   DateTime @default(now())
+}
+
+// MBTIタイプの説明
+model TypeDescription {
+  id          String @id @default(cuid())
+  type        String @unique // e.g., "ESTJ"
+  title       String // e.g., "計画的リーダー"
+  description String // タイプの説明
+  strengths   String // 強み
+  weaknesses  String // 弱み
+  workStyle   String // 職場での理想的役割
+  carePoints  String // 注意点
+  stressTips  String // ストレス軽減策
+}
